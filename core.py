@@ -33,24 +33,20 @@ def rotate_point(cx, cy, angle, px, py):
 
 def worldscreenpoint__camera_point(camera, spot, t):
 
-    # if t:
-    #     x,z = rotate_point(
-    #         camera["coordinates"]["x"],
-    #         camera["coordinates"]["z"],
-    #         -camera["angle"]["x"],
-    #         spot["x"],
-    #         spot["z"]
-    #     )
-    #     y,z = rotate_point(
-    #         camera["coordinates"]["y"],
-    #         camera["coordinates"]["z"],
-    #         -camera["angle"]["y"],
-    #         spot["y"],
-    #         z
-    #     )
-
-    # else:
-    x,z, y = spot["x"], spot["z"], spot["y"]
+    x,z = rotate_point(
+        camera["coordinates"]["x"],
+        camera["coordinates"]["z"],
+        -camera["angle"]["x"],
+        spot["x"],
+        spot["z"]
+    )
+    y,z = rotate_point(
+        camera["coordinates"]["y"],
+        camera["coordinates"]["z"],
+        -camera["angle"]["y"],
+        spot["y"],
+        z
+    )
     
 
     leg2 = x - camera["coordinates"]["x"]
@@ -254,9 +250,9 @@ while True:
             )
 
 
-    polygon["angles"]["x"] += 1
-    polygon["angles"]["y"] += 1
-    polygon["angles"]["z"] += 1
+    # polygon["angles"]["x"] += 1
+    # polygon["angles"]["y"] += 1
+    # polygon["angles"]["z"] += 1
 
 
     sleep(0.05)
