@@ -3,6 +3,7 @@ import numpy as np
 from time import sleep
 from enum import Enum
 import math
+import json
 
 width, height = 800, 800
 
@@ -75,7 +76,17 @@ def screenpoint_of_point(camera, point, t):
 
     return sp
 
-LOG = True
+def get_polygon_from_file(filename):
+
+    filename += ".json"
+
+    with open(filename,"r",encoding="UTF-8") as file_object:
+
+        polygon = json.load(file_object)
+    
+        return polygon
+
+
 ii = 0.01
 # camera = 
 CAMERA_ANGLE = 50
@@ -87,36 +98,10 @@ camera = {
 }
 
 size = 10
-polygon1 = {
-    "coordinates": {'x': 100, 'y': 100, 'z': 110},
-    "angles": {'x': 0, 'y': 0, 'z': 0},
-    "scale": {'x': 3, 'y': 3, 'z': 3},
-    "points": (
-        {'x': -1, 'y': -1, 'z': -1},
-        {'x': -1, 'y': 1, 'z': -1},
-        {'x': 1, 'y': 1, 'z': -1},
-        {'x': 1, 'y': -1, 'z': -1},
-        {'x': -1, 'y': -1, 'z': 1},
-        {'x': -1, 'y': 1, 'z': 1},
-        {'x': 1, 'y': 1, 'z': 1},
-        {'x': 1, 'y': -1, 'z': 1},
-    ),
-    "relations": (
-        (1,0),
-        (1,2),
-        (3,0),
-        (3,2),
-        (5,4),
-        (5,6),
-        (7,4),
-        (7,6),
-        (0,4),
-        (1,5),
-        (2,6),
-        (3,7),
-    )
-}
-polygons = [polygon1]
+
+ 
+polygons = []
+polygons.append( get_polygon_from_file("cube") )
 
 pygame.init()
 screen = pygame.display.set_mode((height, width))
