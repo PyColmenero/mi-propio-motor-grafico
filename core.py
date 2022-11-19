@@ -33,6 +33,23 @@ def rotate_point(cx, cy, angle, px, py):
 
 def worldscreenpoint__camera_point(camera, spot, t):
 
+    # if t:
+    #     x,z = rotate_point(
+    #         camera["coordinates"]["x"],
+    #         camera["coordinates"]["z"],
+    #         -camera["angle"]["x"],
+    #         spot["x"],
+    #         spot["z"]
+    #     )
+    #     y,z = rotate_point(
+    #         camera["coordinates"]["y"],
+    #         camera["coordinates"]["z"],
+    #         -camera["angle"]["y"],
+    #         spot["y"],
+    #         z
+    #     )
+
+    # else:
     x,z, y = spot["x"], spot["z"], spot["y"]
     
 
@@ -76,6 +93,7 @@ camera = {
 size = 10
 polygon1 = {
     "coordinates": {'x': 100, 'y': 100, 'z': 110},
+    "angles": {'x': 0, 'y': 0, 'z': 0},
     "scale": {'x': 3, 'y': 3, 'z': 3},
     "points": (
         {'x': -1, 'y': -1, 'z': -1},
@@ -162,6 +180,13 @@ while True:
     img = font.render(str(str(camera["coordinates"]["x"])+","+str(camera["coordinates"]["y"])+","+str(camera["coordinates"]["z"])), True, (150,150,150))
     screen.blit(img, (10,10))
 
+
+    mouse_x = 100 / ( 800 / mouse_x )
+    mouse_y = 100 / ( 800 / mouse_y )
+    max_angle = 90
+    camera["angle"]["x"] =  -( ((max_angle*2)*(mouse_x/100))-max_angle )
+    camera["angle"]["y"] =  -( ((max_angle*2)*(mouse_y/100))-max_angle )
+
    
 
     for polygon in polygons:
@@ -171,11 +196,34 @@ while True:
         vertexs = polygon["points"]
         relations = polygon["relations"]
 
+        x_degrees,y_degrees,z_degrees = polygon["angles"]["x"],polygon["angles"]["y"],polygon["angles"]["z"]
+
         vertexs = [ {
             "x": vertex["x"] * scale["x"],
             "y": vertex["y"] * scale["y"],
             "z": vertex["z"] * scale["z"]
         } for vertex in vertexs ]
+        vertexs = [
+            {
+                "x": ( v["x"] * math.cos(math.radians(x_degrees)) ) - ( v["y"] * math.sin(math.radians(x_degrees)) ),
+                "y": ( v["x"] * math.sin(math.radians(x_degrees)) ) + ( v["y"] * math.cos(math.radians(x_degrees)) ),
+                "z": v["z"]
+            } for v in vertexs
+        ]
+        vertexs = [
+            {
+                "x": ( v["x"] * math.cos(math.radians(y_degrees)) ) - ( v["z"] * math.sin(math.radians(y_degrees)) ),
+                "z": ( v["x"] * math.sin(math.radians(y_degrees)) ) + ( v["z"] * math.cos(math.radians(y_degrees)) ),
+                "y": v["y"]
+            } for v in vertexs
+        ]
+        vertexs = [
+            {
+                "z": ( v["z"] * math.cos(math.radians(z_degrees)) ) - ( v["y"] * math.sin(math.radians(z_degrees)) ),
+                "y": ( v["z"] * math.sin(math.radians(z_degrees)) ) + ( v["y"] * math.cos(math.radians(z_degrees)) ),
+                "x": v["x"]
+            } for v in vertexs
+        ]
         
         coordinates = [ { 
             "x":abs_coordinates["x"]+c["x"],
@@ -205,6 +253,10 @@ while True:
                 1
             )
 
+
+    polygon["angles"]["x"] += 1
+    polygon["angles"]["y"] += 1
+    polygon["angles"]["z"] += 1
 
 
     sleep(0.05)
