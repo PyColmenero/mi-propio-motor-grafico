@@ -21,3 +21,5 @@ https://web.ma.utexas.edu/users/m408m/Display12-5-4.shtml
 ## TODO
 * Que el cambio de posición de la cámara hacia una no sea estática hacia alguno de los puntos cardinales, sino hacia el ángulo de visión.
 * Que el ratón se pueda mover sin límite hacia todos los angulos, y no solo ±180 grados.
+* Transformar todos los diccionarios del tipo {"x","y","z"} a objetos de la clase Point.
+* Extrapolar el punto anterior a otras clases como Polygon, Line.
