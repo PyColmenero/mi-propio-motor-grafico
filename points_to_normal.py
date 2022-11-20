@@ -50,14 +50,3 @@ def points_to_normal(p1,p2,p3, camera):
     normal = np.array(u_cross_v)
 
     return tuple(normal)
-
-# p1 = [100,100,100]
-# p2 = [101,98,101]
-# p3 = [102,97,102]
-# camera = {
-#     "coordinates": {"x": 100, "y": 100, "z": 100},
-#     "angle": {"x":-10,"y":0}
-# }
-# r = points_to_normal(p1,p2,p3, camera, False)
-
-# print(r)
