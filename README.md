@@ -28,3 +28,4 @@ https://web.ma.utexas.edu/users/m408m/Display12-5-4.shtml
 * Aplicar transformacion como la rotación y escala solo cuando estos parámetros cambian.
 * El ángulo de visión está fijado a 45º devido a la manera en la que se obtienen los 3 puntos para conseguir le Vector Normal de los planos de la visión de la cámara.
 * Si la cámara tiene las mismas coordenadas que una arista, crasea por la división de 0.
+* La resolución de la pantalla está fijada a 1:1
