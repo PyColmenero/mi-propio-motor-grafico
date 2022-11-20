@@ -4,6 +4,8 @@ from time import sleep
 from enum import Enum
 import math
 import json
+from line_plane_intersection import isect_line_plane_v3
+from points_to_normal import points_to_normal
 
 width, height = 800, 800
 
@@ -13,8 +15,13 @@ class Colors(Enum):
     polygon = (200, 200, 200)
 
 def screenpoint__camera_point(percentages):
-    return int(800 * (percentages[0]/100)), int(800 * (percentages[1]/100))
+    return int(width * (percentages[0]/100)), int(height * (percentages[1]/100))
 
+def rotate_3d_point(cx, cy,cz, anglex, angley, px, py,pz):
+    x,z = rotate_point(cx,cz,anglex,px,pz)
+    y,z = rotate_point(cy,cz,angley,py,z)
+
+    return x,y,z
 def rotate_point(cx, cy, angle, px, py):
 
     s = math.sin(math.radians(angle))
@@ -31,50 +38,177 @@ def rotate_point(cx, cy, angle, px, py):
     return px,py
 
 
-
-def worldscreenpoint__camera_point(camera, spot, t):
-
-    x,z = rotate_point(
-        camera["coordinates"]["x"],
-        camera["coordinates"]["z"],
-        -camera["angle"]["x"],
-        spot["x"],
-        spot["z"]
-    )
-    y,z = rotate_point(
-        camera["coordinates"]["y"],
-        camera["coordinates"]["z"],
-        -camera["angle"]["y"],
-        spot["y"],
-        z
-    )
-    
-
-    leg2 = x - camera["coordinates"]["x"]
-    leg1 = z - camera["coordinates"]["z"]
-    hipo = math.sqrt((leg2*leg2) + (leg1*leg1))
-    xangle = math.degrees(np.arcsin(leg2/hipo)) # + camera["angle"]["x"]
-    x_camera_screen_point_inter_distance = math.tan(math.radians(xangle))
-
-    leg2 = y - camera["coordinates"]["y"]
-    leg1 = z - camera["coordinates"]["z"]
-    hipo = math.sqrt((leg2**2) + (leg1**2))
-    yangle = math.degrees(np.arcsin(leg2/hipo)) # + camera["angle"]["y"]
-    y_camera_screen_point_inter_distance = math.tan(math.radians(yangle)) # * hipotenusa
-
-
+def angles_to_screenpoint(x,y):
+    x_camera_screen_point_inter_distance = math.tan(math.radians(x))
+    y_camera_screen_point_inter_distance = math.tan(math.radians(y)) # * hipotenusa
     xp = ( 100 / ( (camera_total_inter_distance*2) / (x_camera_screen_point_inter_distance+camera_total_inter_distance) ) ) 
     yp = ( 100 / ( (camera_total_inter_distance*2) / (y_camera_screen_point_inter_distance+camera_total_inter_distance) ) ) 
+    return xp,yp
 
-    return xp, yp
+def worldscreenpoint__camera_point(
+    first_point_x: float = 0,
+    first_point_y: float = 0,
+    first_point_z: float = 0,
+    second_point_x: float = 0,
+    second_point_y: float = 0,
+    second_point_z: float = 0,
+    rotation_about_first_point_x: float = 0,
+    rotation_about_first_point_y: float = 0
+):
+
+    x,y,z = rotate_3d_point(
+        first_point_x, first_point_y, first_point_z,
+        -rotation_about_first_point_x, -rotation_about_first_point_y,
+        second_point_x,second_point_y,second_point_z
+    )
+
+    leg1 = z - first_point_z
+    
+    leg2 = x - first_point_x
+    hipo = math.sqrt((leg2*leg2) + (leg1*leg1))
+    xangle = math.degrees(np.arcsin(leg2/hipo))
+
+    leg2 = y - first_point_y
+    hipo = math.sqrt((leg2**2) + (leg1**2)) or 1
+    yangle = math.degrees(np.arcsin(leg2/hipo))
+        
+    
+    return xangle, yangle
+
+def point_to_intersection(camera,vector,p1,p2, zplus=0):
+
+    inter = isect_line_plane_v3(
+        (p1["x"], p1["y"], p1["z"]),
+        (p2["x"], p2["y"], p2["z"]),
+        (camera["coordinates"]["x"], camera["coordinates"]["y"], camera["coordinates"]["z"]),
+        vector
+    )
+
+    if inter:
+
+        return worldscreenpoint__camera_point(
+            camera["coordinates"]["x"], 
+            camera["coordinates"]["y"], 
+            camera["coordinates"]["z"], 
+            inter[0],
+            inter[1],
+            inter[2],
+            camera["angle"]["x"],
+            camera["angle"]["y"]
+        )
 
 
-def screenpoint_of_point(camera, point, t):
+def get_angles_from_ver_inter(point_one_angles, point_two_angles):
 
-    percentages = worldscreenpoint__camera_point(camera, point,t)
-    sp = screenpoint__camera_point(percentages)
+    p1 = [camera["coordinates"]["x"], camera["coordinates"]["y"], camera["coordinates"]["z"]]
+    p2 = [camera["coordinates"]["x"]+1,camera["coordinates"]["y"]+1,camera["coordinates"]["z"]+1]
+    p3 = [camera["coordinates"]["x"]-1,camera["coordinates"]["y"]+2,camera["coordinates"]["z"]+2]
+    normal_up = points_to_normal(p1,p2,p3, camera)
+    p1 = [camera["coordinates"]["x"], camera["coordinates"]["y"], camera["coordinates"]["z"]]
+    p2 = [camera["coordinates"]["x"]+1,camera["coordinates"]["y"]-1,camera["coordinates"]["z"]+1]
+    p3 = [camera["coordinates"]["x"]-1,camera["coordinates"]["y"]-2,camera["coordinates"]["z"]+2]
+    normal_down = points_to_normal(p1,p2,p3, camera)
 
-    return sp
+    # igriegases
+    if point_two_angles[1] > MAX_CAMERA_ANGLE:
+        normal_vector_to_plane = normal_up
+        point_two_angles = point_to_intersection(
+            camera=camera,
+            vector=normal_vector_to_plane,
+            p1=point_one,
+            p2=point_two
+        ) or point_two_angles
+    if point_two_angles[1] < -MAX_CAMERA_ANGLE:
+        normal_vector_to_plane = normal_down
+        point_two_angles = point_to_intersection(
+            camera=camera,
+            vector=normal_vector_to_plane,
+            p1=point_one,
+            p2=point_two
+        ) or point_two_angles
+    if point_one_angles[1] > MAX_CAMERA_ANGLE:
+        normal_vector_to_plane = normal_up
+        point_one_angles = point_to_intersection(
+            camera=camera,
+            vector=normal_vector_to_plane,
+            p1=point_one,
+            p2=point_two
+        ) or point_one_angles
+    if point_one_angles[1] < -MAX_CAMERA_ANGLE:
+        normal_vector_to_plane = normal_down
+        point_one_angles = point_to_intersection(
+            camera=camera,
+            vector=normal_vector_to_plane,
+            p1=point_one,
+            p2=point_two
+        ) or point_one_angles
+
+    return point_one_angles, point_two_angles
+
+def get_angles_from_depth_inter(point_one, point_two):
+
+    p1 = [camera["coordinates"]["x"], camera["coordinates"]["y"],   camera["coordinates"]["z"]]
+    p2 = [camera["coordinates"]["x"]+2,camera["coordinates"]["y"]-1,camera["coordinates"]["z"]]
+    p3 = [camera["coordinates"]["x"]-1,camera["coordinates"]["y"]+2,camera["coordinates"]["z"]]
+    normal_depth = points_to_normal(p1,p2,p3, camera)
+    
+    if ALLOWED_LOG:
+        print(normal_depth)
+
+    return point_to_intersection(
+        camera=camera,
+        vector=normal_depth,
+        p1=point_one,
+        p2=point_two,
+        zplus=MAX_NEARNES
+    )
+
+def get_angles_from_hor_inter(point_one_angles, point_two_angles):
+
+    p1 = [camera["coordinates"]["x"], camera["coordinates"]["y"], camera["coordinates"]["z"]]
+    p2 = [camera["coordinates"]["x"]+1,camera["coordinates"]["y"]+1,camera["coordinates"]["z"]+1]
+    p3 = [camera["coordinates"]["x"]+2,camera["coordinates"]["y"]-1,camera["coordinates"]["z"]+2]
+    normal_right = points_to_normal(p1,p2,p3, camera)
+    p1 = [camera["coordinates"]["x"], camera["coordinates"]["y"], camera["coordinates"]["z"]]
+    p2 = [camera["coordinates"]["x"]-1,camera["coordinates"]["y"]+1,camera["coordinates"]["z"]+1]
+    p3 = [camera["coordinates"]["x"]-2,camera["coordinates"]["y"]-1,camera["coordinates"]["z"]+2]
+    normal_left = points_to_normal(p1,p2,p3,camera)
+
+    # equises
+    if point_two_angles[0] > MAX_CAMERA_ANGLE:
+        normal_vector_to_plane = normal_right
+        point_two_angles = point_to_intersection(
+            camera=camera,
+            vector=normal_vector_to_plane,
+            p1=point_one,
+            p2=point_two
+        ) or point_two_angles
+    if point_two_angles[0] < -MAX_CAMERA_ANGLE:
+        normal_vector_to_plane = normal_left
+        point_two_angles = point_to_intersection(
+            camera=camera,
+            vector=normal_vector_to_plane,
+            p1=point_one,
+            p2=point_two
+        ) or point_two_angles
+    if point_one_angles[0] > MAX_CAMERA_ANGLE:
+        normal_vector_to_plane = normal_right
+        point_one_angles = point_to_intersection(
+            camera=camera,
+            vector=normal_vector_to_plane,
+            p1=point_one,
+            p2=point_two
+        ) or point_one_angles
+    if point_one_angles[0] < -MAX_CAMERA_ANGLE:
+        normal_vector_to_plane = normal_left
+        point_one_angles = point_to_intersection(
+            camera=camera,
+            vector=normal_vector_to_plane,
+            p1=point_one,
+            p2=point_two
+        ) or point_one_angles
+
+    return point_one_angles, point_two_angles
 
 def get_polygon_from_file(filename):
 
@@ -94,29 +228,70 @@ speed = .5
 camera_total_inter_distance = math.tan(math.radians(CAMERA_ANGLE)) # * hipotenusa
 camera = {
     "coordinates": {"x": 100, "y": 100, "z": 100},
-    "angle": {"x":0,"y":0}
+    "angle": {"x":10,"y":0}
 }
 
-size = 10
-
+size = 6
+ALLOWED_LOG = True
  
 polygons = []
+# polygons.append( get_polygon_from_file("line") )
 polygons.append( get_polygon_from_file("cube") )
+
+# for x in range(30):
+#     # for z in range(5):
+#     polygons.append( 
+#         {
+#             "coordinates": {"x": 50+(x*size), "y": 110, "z": 0},
+#             "angles": {"x": 0, "y": 0, "z": 0},
+#             "scale": {"x": 1, "y": 1, "z": 1},
+#             "points": [
+#                 {"x": -1, "y": -1, "z": 0},
+#                 {"x": 1, "y": -1, "z": 200}
+#             ],
+#             "relations": [
+#                 [0,1]
+#             ]
+#         } 
+#     )
+# for x in range(30):
+#     # for z in range(5):
+#     polygons.append( 
+#         {
+#             "coordinates": {"x": 0, "y": 110, "z": 50+(x*size)},
+#             "angles": {"x": 0, "y": 0, "z": 0},
+#             "scale": {"x": 1, "y": 1, "z": 1},
+#             "points": [
+#                 {"x": 0, "y": -1, "z": -1},
+#                 {"x": 200, "y": -1, "z": 1}
+#             ],
+#             "relations": [
+#                 [0,1]
+#             ]
+#         } 
+#     )
 
 pygame.init()
 screen = pygame.display.set_mode((height, width))
 screen.fill(Colors.background.value)
-print(Colors.background)
 
 font = pygame.font.SysFont(None, 24)
 
 
 while True:
 
-    pygame.mouse.set_cursor((8,8),(0,0),(0,0,0,0,0,0,0,0),(0,0,0,0,0,0,0,0))
-    mouse = pygame.mouse.get_pos()
-    mouse_x = mouse[0] or 1
-    mouse_y = mouse[1] or 1
+    if True:
+        pygame.mouse.set_cursor((8,8),(0,0),(0,0,0,0,0,0,0,0),(0,0,0,0,0,0,0,0))
+        pygame.event.set_grab(True)
+        mouse = pygame.mouse.get_pos()
+        mouse_x = mouse[0] or 1
+        mouse_y = mouse[1] or 1
+        mouse_x = 100 / ( width / mouse_x )
+        mouse_y = 100 / ( height / mouse_y )
+        max_angle = 180
+        camera["angle"]["x"] =  -( ((max_angle*2)*(mouse_x/100))-max_angle )
+        camera["angle"]["y"] =  -( ((max_angle*2)*(mouse_y/100))-max_angle )
+
 
     events = pygame.event.get()
     keys = pygame.key.get_pressed()
@@ -134,9 +309,13 @@ while True:
     if keys[pygame.K_s]:
         camera["coordinates"]["z"] -= speed
     for event in events:
-        pygame.event.set_grab(True)
+
+        
 
         if event.type == pygame.KEYDOWN:
+
+            ALLOWED_LOG = True
+            
             if event.key == pygame.K_ESCAPE:
                 pygame.quit()
                 exit()
@@ -161,14 +340,6 @@ while True:
     img = font.render(str(str(camera["coordinates"]["x"])+","+str(camera["coordinates"]["y"])+","+str(camera["coordinates"]["z"])), True, (150,150,150))
     screen.blit(img, (10,10))
 
-
-    mouse_x = 100 / ( 800 / mouse_x )
-    mouse_y = 100 / ( 800 / mouse_y )
-    max_angle = 90
-    camera["angle"]["x"] =  -( ((max_angle*2)*(mouse_x/100))-max_angle )
-    camera["angle"]["y"] =  -( ((max_angle*2)*(mouse_y/100))-max_angle )
-
-   
 
     for polygon in polygons:
 
@@ -213,27 +384,105 @@ while True:
         } for c in vertexs ]
 
 
-        polygon_screen = [screenpoint_of_point(camera, point,True) for point in coordinates]
+        polygon_screen = [worldscreenpoint__camera_point(
+            camera["coordinates"]["x"], 
+            camera["coordinates"]["y"], 
+            camera["coordinates"]["z"], 
+            point["x"],
+            point["y"],
+            point["z"],
+            camera["angle"]["x"],
+            camera["angle"]["y"]
+        ) for point in coordinates]
 
         for i, r in enumerate(relations):
 
-            point = coordinates[r[0]]
-            xs = polygon_screen[r[0]]
-            ys = polygon_screen[r[1]]
+            point_one = coordinates[r[0]]
+            point_two = coordinates[r[1]]
+            point_one_angles = polygon_screen[r[0]]
+            point_two_angles = polygon_screen[r[1]]
 
-            if i == 0:
-                text = str(str(round(point["x"],1))+","+str(round(point["y"],1))+","+str(round(point["z"],1)))
-                img = font.render(text, True, (150,150,150))
-                screen.blit(img, xs)
+            MAX_CAMERA_ANGLE = 45
+            MAX_NEARNES = 6
 
-            pygame.draw.line(
-                screen, 
-                Colors.polygon.value,
-                xs,
-                ys,
-                1
+            x,y,z = rotate_3d_point(
+                camera["coordinates"]["x"], camera["coordinates"]["y"], camera["coordinates"]["z"], 
+                -camera["angle"]["x"], -camera["angle"]["y"],
+                point_one["x"], point_one["y"], point_one["z"]
             )
+            point_one_rot = {"x":x,"y":y,"z":z}
 
+            x,y,z = rotate_3d_point(
+                camera["coordinates"]["x"], camera["coordinates"]["y"], camera["coordinates"]["z"], 
+                -camera["angle"]["x"], -camera["angle"]["y"],
+                point_two["x"], point_two["y"], point_two["z"]
+            )
+            point_two_rot = {"x":x,"y":y,"z":z}
+
+            if point_one_rot["z"] <= camera["coordinates"]["z"] and point_two_rot["z"] <= camera["coordinates"]["z"]:
+                continue
+            
+            if point_one_rot["z"] <= camera["coordinates"]["z"]:
+                point_one_angles  = get_angles_from_depth_inter(point_one, point_two)
+            if point_two_rot["z"] <= camera["coordinates"]["z"]:
+                point_two_angles  = get_angles_from_depth_inter(point_one, point_two)
+
+
+            # si ambos puntos de la linea, están fuera del rango de visión, continue
+            if point_two_angles[1] < -MAX_CAMERA_ANGLE and point_one_angles[1] < -MAX_CAMERA_ANGLE:
+                continue
+            if point_two_angles[1] > MAX_CAMERA_ANGLE and point_one_angles[1] > MAX_CAMERA_ANGLE:
+                continue
+            if point_two_angles[0] < -MAX_CAMERA_ANGLE and point_one_angles[0] < -MAX_CAMERA_ANGLE:
+                continue
+            if point_two_angles[0] > MAX_CAMERA_ANGLE and point_one_angles[0] > MAX_CAMERA_ANGLE:
+                continue
+
+            #         if point_one_angles[0] < -MAX_CAMERA_ANGLE and point_one_angles[1] > MAX_CAMERA_ANGLE :
+
+            #             # true = horizontal
+            #             hor_ver = abs(point_one_angles[0]) > abs(point_one_angles[1])
+                        
+            #             if hor_ver:
+            #                 point_one_angles, point_two_angles = get_angles_from_hor_inter(point_one_angles, point_two_angles)
+            #             else:
+            #                 point_one_angles, point_two_angles = get_angles_from_ver_inter(point_one_angles, point_two_angles)
+
+            #         elif point_two_angles[0] < -MAX_CAMERA_ANGLE and point_two_angles[1] > MAX_CAMERA_ANGLE :
+
+            #             hor_ver = abs(point_two_angles[0]) > abs(point_two_angles[1])
+
+            #             if not hor_ver:
+            #                 point_one_angles, point_two_angles = get_angles_from_hor_inter(point_one_angles, point_two_angles)
+            #             else:
+            #                 point_one_angles, point_two_angles = get_angles_from_ver_inter(point_one_angles, point_two_angles)
+
+
+            point_one_angles, point_two_angles = get_angles_from_hor_inter(point_one_angles, point_two_angles)
+            point_one_angles, point_two_angles = get_angles_from_ver_inter(point_one_angles, point_two_angles)
+
+                
+
+            point_one_percentage = angles_to_screenpoint(point_one_angles[0], point_one_angles[1])
+            point_percentage = angles_to_screenpoint(point_two_angles[0], point_two_angles[1])
+            
+            xs = screenpoint__camera_point( point_one_percentage )
+            ys = screenpoint__camera_point( point_percentage )
+
+            # if i == 0:
+            #     text = str(str(round(point["x"],1))+","+str(round(point["y"],1))+","+str(round(point["z"],1)))
+            #     img = font.render(text, True, (150,150,150))
+            #     screen.blit(img, xs)
+            if ((-10000 <= xs[0] <= 10000) and (-10000 <= xs[1] <= 10000)) and ((-10000 <= ys[0] <= 10000) and (-10000 <= ys[1] <= 10000)):
+                pygame.draw.line(
+                    screen, 
+                    Colors.polygon.value,
+                    xs,
+                    ys,
+                    1
+                )
+
+    ALLOWED_LOG = False
 
     # polygon["angles"]["x"] += 1
     # polygon["angles"]["y"] += 1
