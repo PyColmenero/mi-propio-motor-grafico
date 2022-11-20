@@ -24,7 +24,6 @@ https://web.ma.utexas.edu/users/m408m/Display12-5-4.shtml
 * Renderizar solo los poligonos más cercanos a la cámara, ignorando los tapados por estos.
 * Transformar todos los diccionarios del tipo {"x","y","z"} a objetos de la clase Point.
 * Extrapolar el punto anterior a otras clases como Polygon, Line.
-* El eje Z e Y están invertidos.
 * Añadir Ctrl + F3
 * Aplicar transformacion como la rotación y escala solo cuando estos parámetros cambian.
 * El ángulo de visión está fijado a 45º devido a la manera en la que se obtienen los 3 puntos para conseguir le Vector Normal de los planos de la visión de la cámara.
